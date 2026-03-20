@@ -37,14 +37,18 @@ export async function GET(request: NextRequest) {
   let expiresIn: number;
 
   try {
+    const clientKey = process.env.TIKTOK_CLIENT_KEY!;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET!;
+    console.log("TikTok debug - client_key:", clientKey, "secret_length:", clientSecret?.length, "secret_start:", clientSecret?.slice(0, 4));
+
     const tokenRes = await fetch(
       "https://open.tiktokapis.com/v2/oauth/token/",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          client_key: process.env.TIKTOK_CLIENT_KEY!,
-          client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+          client_key: clientKey,
+          client_secret: clientSecret,
           code,
           grant_type: "authorization_code",
           redirect_uri: `${process.env.NEXTAUTH_URL}/api/connect/tiktok/callback`,
