@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 interface Account {
@@ -91,6 +92,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const router = useRouter();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     message: string;
@@ -153,6 +155,35 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
       setToast({ type: "error", message: "Network error. Try again." });
     } finally {
       setDisconnecting(null);
+    }
+  }
+
+  async function handleSync(accountId: string, platform: string) {
+    setSyncing(accountId);
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setToast({
+          type: "success",
+          message: `Synced ${data.postsSynced} posts and ${data.commentsSynced} comments from ${platform}.`,
+        });
+        router.refresh();
+      } else {
+        setToast({
+          type: "error",
+          message: data.error ?? "Sync failed. Please try again.",
+        });
+      }
+    } catch {
+      setToast({ type: "error", message: "Network error during sync." });
+    } finally {
+      setSyncing(null);
     }
   }
 
@@ -220,18 +251,32 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     {account.platform} &middot; {account.postCount} posts synced
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDisconnect(account.id, account.platform)}
-                  disabled={isDisconnecting}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isDisconnecting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Disconnect
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSync(account.id, account.platform)}
+                    disabled={syncing === account.id}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-brand-600 hover:bg-brand-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {syncing === account.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Sync
+                  </button>
+                  <button
+                    onClick={() => handleDisconnect(account.id, account.platform)}
+                    disabled={isDisconnecting}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isDisconnecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Disconnect
+                  </button>
+                </div>
               </div>
             );
           })}

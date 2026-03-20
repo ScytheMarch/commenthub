@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Send,
   Inbox,
+  Loader2,
 } from "lucide-react";
 
 interface Comment {
@@ -32,12 +33,14 @@ interface Comment {
 type FilterType = "all" | "unreplied" | "replied";
 type PlatformFilter = "all" | "instagram" | "tiktok" | "youtube" | "twitter";
 
-export function InboxClient({ comments }: { comments: Comment[] }) {
+export function InboxClient({ comments: initialComments }: { comments: Comment[] }) {
+  const [comments, setComments] = useState(initialComments);
   const [filter, setFilter] = useState<FilterType>("all");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
 
   const filtered = comments.filter((c) => {
     if (filter === "unreplied" && c.repliedAt) return false;
@@ -48,6 +51,36 @@ export function InboxClient({ comments }: { comments: Comment[] }) {
   });
 
   const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0] ?? null;
+
+  async function handleReply() {
+    if (!selected || !replyText.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId: selected.id, text: replyText.trim() }),
+      });
+      if (res.ok) {
+        // Update local state to show the reply immediately
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === selected.id
+              ? { ...c, repliedAt: new Date().toISOString(), ourReplyText: replyText.trim() }
+              : c
+          )
+        );
+        setReplyText("");
+      } else {
+        const data = await res.json();
+        alert(data.error ?? "Failed to send reply");
+      }
+    } catch {
+      alert("Network error sending reply");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -265,16 +298,21 @@ export function InboxClient({ comments }: { comments: Comment[] }) {
                           className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-border bg-surface-alt focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && replyText.trim()) {
-                              // TODO: Wire up API reply
-                              setReplyText("");
+                              handleReply();
                             }
                           }}
+                          disabled={sending}
                         />
                         <button
-                          disabled={!replyText.trim()}
+                          onClick={handleReply}
+                          disabled={!replyText.trim() || sending}
                           className="px-4 py-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                          <Send className="h-4 w-4" />
+                          {sending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </div>
