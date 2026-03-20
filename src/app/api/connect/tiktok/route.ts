@@ -21,7 +21,7 @@ export async function GET() {
   const params = new URLSearchParams({
     client_key: process.env.TIKTOK_CLIENT_KEY!,
     response_type: "code",
-    scope: "user.info.profile,user.info.stats,video.list",
+    scope: "user.info.profile,user.info.stats,video.list,comment.list,comment.list.manage",
     redirect_uri: `${process.env.NEXTAUTH_URL}/api/connect/tiktok/callback`,
     state,
     code_challenge: codeChallenge,

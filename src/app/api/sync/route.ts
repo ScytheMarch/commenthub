@@ -90,6 +90,7 @@ async function syncTikTok(account: {
   );
 
   const videoData = await videoRes.json();
+  console.log("TikTok video list response:", JSON.stringify(videoData));
 
   if (videoData.error?.code !== "ok" && videoData.error?.code) {
     console.error("TikTok video list error:", videoData);
