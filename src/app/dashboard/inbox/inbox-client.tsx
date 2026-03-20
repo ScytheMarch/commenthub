@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cn, timeAgo, platformBg, truncate } from "@/lib/utils";
+import { cn, timeAgo, platformBg } from "@/lib/utils";
 import {
-  Filter,
   Search,
   Heart,
   MessageCircle,
@@ -11,6 +10,7 @@ import {
   Send,
   Inbox,
   Loader2,
+  Video,
 } from "lucide-react";
 
 interface Comment {
@@ -30,10 +30,28 @@ interface Comment {
   accountUsername: string;
 }
 
+interface Post {
+  id: string;
+  platform: string;
+  caption: string | null;
+  thumbnailUrl: string | null;
+  permalink: string | null;
+  mediaType: string | null;
+  publishedAt: string | null;
+  commentCount: number;
+  accountUsername: string;
+}
+
 type FilterType = "all" | "unreplied" | "replied";
 type PlatformFilter = "all" | "instagram" | "tiktok" | "youtube" | "twitter";
 
-export function InboxClient({ comments: initialComments }: { comments: Comment[] }) {
+export function InboxClient({
+  comments: initialComments,
+  posts = [],
+}: {
+  comments: Comment[];
+  posts?: Post[];
+}) {
   const [comments, setComments] = useState(initialComments);
   const [filter, setFilter] = useState<FilterType>("all");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
@@ -62,7 +80,6 @@ export function InboxClient({ comments: initialComments }: { comments: Comment[]
         body: JSON.stringify({ commentId: selected.id, text: replyText.trim() }),
       });
       if (res.ok) {
-        // Update local state to show the reply immediately
         setComments((prev) =>
           prev.map((c) =>
             c.id === selected.id
@@ -94,12 +111,73 @@ export function InboxClient({ comments: initialComments }: { comments: Comment[]
       </div>
 
       {comments.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-border p-16 text-center">
-          <Inbox className="h-12 w-12 text-text-muted mx-auto mb-4" />
-          <h2 className="text-lg font-semibold mb-2">Your inbox is empty</h2>
-          <p className="text-text-secondary text-sm">
-            Connect a social account and sync your posts to see comments here.
-          </p>
+        <div className="space-y-6">
+          {/* Synced posts section */}
+          {posts.length > 0 && (
+            <div className="bg-white rounded-2xl border border-border">
+              <div className="px-6 py-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Synced Posts</h2>
+                <p className="text-text-secondary text-sm mt-0.5">
+                  {posts.length} posts pulled from your connected accounts
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {posts.map((post) => (
+                  <div key={post.id} className="px-6 py-4 flex items-center gap-4">
+                    {post.thumbnailUrl ? (
+                      <img
+                        src={post.thumbnailUrl}
+                        alt=""
+                        className="w-14 h-14 rounded-lg object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-surface-alt flex items-center justify-center shrink-0">
+                        <Video className="h-6 w-6 text-text-muted" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium line-clamp-1">
+                        {post.caption || "Untitled post"}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-text-muted">
+                        <span className="capitalize">{post.platform}</span>
+                        <span>@{post.accountUsername}</span>
+                        {post.publishedAt && (
+                          <span>{timeAgo(post.publishedAt)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-text-muted">
+                        {post.commentCount} comments
+                      </span>
+                      {post.permalink && (
+                        <a
+                          href={post.permalink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-600 hover:text-brand-700"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty comments message */}
+          <div className="bg-white rounded-2xl border border-border p-16 text-center">
+            <Inbox className="h-12 w-12 text-text-muted mx-auto mb-4" />
+            <h2 className="text-lg font-semibold mb-2">No comments yet</h2>
+            <p className="text-text-secondary text-sm max-w-md mx-auto">
+              {posts.length > 0
+                ? "Your posts are synced but comments couldn't be pulled yet. This may be due to platform API restrictions in sandbox mode."
+                : "Connect a social account and sync your posts to see comments here."}
+            </p>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-border overflow-hidden">

@@ -90,7 +90,6 @@ async function syncTikTok(account: {
   );
 
   const videoData = await videoRes.json();
-  console.log("TikTok video list response:", JSON.stringify(videoData));
 
   if (videoData.error?.code !== "ok" && videoData.error?.code) {
     console.error("TikTok video list error:", videoData);
@@ -147,6 +146,13 @@ async function syncTikTok(account: {
             }),
           }
         );
+
+        // TikTok sandbox may return HTML instead of JSON when scope is missing
+        const contentType = commentRes.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          console.warn(`TikTok comment API returned non-JSON (scope likely missing) for video ${video.id}`);
+          continue;
+        }
 
         const commentData = await commentRes.json();
         const comments: TikTokComment[] = commentData.data?.comments ?? [];

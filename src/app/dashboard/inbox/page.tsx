@@ -22,7 +22,7 @@ export default async function InboxPage() {
     take: 50,
   });
 
-  const serialized = comments.map((c) => ({
+  const serializedComments = comments.map((c) => ({
     id: c.id,
     platform: c.platform,
     authorName: c.authorName,
@@ -39,5 +39,30 @@ export default async function InboxPage() {
     accountUsername: c.parentPost.connectedAccount.username,
   }));
 
-  return <InboxClient comments={serialized} />;
+  // Also fetch synced posts so user can see what was pulled
+  const posts = await db.post.findMany({
+    where: {
+      connectedAccount: { userId: session!.user!.id },
+    },
+    include: {
+      connectedAccount: true,
+      _count: { select: { comments: true } },
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 20,
+  });
+
+  const serializedPosts = posts.map((p) => ({
+    id: p.id,
+    platform: p.platform,
+    caption: p.caption,
+    thumbnailUrl: p.thumbnailUrl,
+    permalink: p.permalink,
+    mediaType: p.mediaType,
+    publishedAt: p.publishedAt?.toISOString() ?? null,
+    commentCount: p._count.comments,
+    accountUsername: p.connectedAccount.username,
+  }));
+
+  return <InboxClient comments={serializedComments} posts={serializedPosts} />;
 }
