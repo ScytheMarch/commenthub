@@ -53,12 +53,14 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    if (!tokenRes.ok) {
-      console.error("TikTok token exchange failed:", await tokenRes.text());
+    const data = await tokenRes.json();
+    console.log("TikTok token response:", JSON.stringify(data));
+
+    if (!tokenRes.ok || data.error) {
+      console.error("TikTok token exchange failed:", data);
       return oauthError("token_exchange_failed");
     }
 
-    const data = await tokenRes.json();
     accessToken = data.access_token;
     openId = data.open_id;
     refreshToken = data.refresh_token ?? null;
@@ -74,29 +76,30 @@ export async function GET(request: NextRequest) {
 
   try {
     const userRes = await fetch(
-      "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url",
+      "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username",
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
-    if (!userRes.ok) {
-      console.error("TikTok user fetch failed:", await userRes.text());
-      return oauthError("profile_fetch_failed");
-    }
-
     const userData = await userRes.json();
-    const user = userData.data?.user;
+    console.log("TikTok user response:", JSON.stringify(userData));
 
-    if (!user) {
-      return oauthError("profile_fetch_failed");
+    // TikTok wraps response in data.user
+    const user = userData?.data?.user;
+
+    if (user) {
+      displayName = user.display_name || user.username || `tiktok_${openId.slice(0, 8)}`;
+      avatarUrl = user.avatar_url ?? null;
+    } else {
+      // If user info fetch fails, still save the account with openId as username
+      console.warn("TikTok user info empty, using openId as fallback");
+      displayName = `tiktok_${openId.slice(0, 8)}`;
     }
-
-    displayName = user.display_name || `tiktok_${openId.slice(0, 8)}`;
-    avatarUrl = user.avatar_url ?? null;
   } catch (err) {
-    console.error("TikTok user error:", err);
-    return oauthError("profile_fetch_failed");
+    // Don't fail the whole flow if profile fetch fails — save what we have
+    console.error("TikTok user info error (non-fatal):", err);
+    displayName = `tiktok_${openId.slice(0, 8)}`;
   }
 
   // Save to database
@@ -118,7 +121,7 @@ export async function GET(request: NextRequest) {
         accessToken,
         refreshToken,
         expiresAt,
-        scope: "user.info.basic,video.list,comment.list,comment.list.manage",
+        scope: "user.info.profile,user.info.stats,video.list",
         avatarUrl,
       },
       update: {
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
         refreshToken,
         expiresAt,
         avatarUrl,
+        username: displayName,
       },
     });
   } catch (err) {
