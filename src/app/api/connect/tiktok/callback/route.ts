@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
   try {
     const clientKey = process.env.TIKTOK_CLIENT_KEY!;
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET!;
-    console.log("TikTok debug - client_key:", clientKey, "secret_length:", clientSecret?.length, "secret_start:", clientSecret?.slice(0, 4));
-
+    const redirectUri = `${process.env.NEXTAUTH_URL}/api/connect/tiktok/callback`;
     const tokenRes = await fetch(
       "https://open.tiktokapis.com/v2/oauth/token/",
       {
@@ -58,8 +57,6 @@ export async function GET(request: NextRequest) {
     );
 
     const data = await tokenRes.json();
-    console.log("TikTok token response:", JSON.stringify(data));
-
     if (!tokenRes.ok || data.error) {
       console.error("TikTok token exchange failed:", data);
       return oauthError("token_exchange_failed");
@@ -87,8 +84,6 @@ export async function GET(request: NextRequest) {
     );
 
     const userData = await userRes.json();
-    console.log("TikTok user response:", JSON.stringify(userData));
-
     // TikTok wraps response in data.user
     const user = userData?.data?.user;
 
